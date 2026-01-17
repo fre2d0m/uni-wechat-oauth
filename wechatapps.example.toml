@@ -1,0 +1,16 @@
+# 微信应用配置示例
+# 复制此文件为 wechatapps.toml 并填入真实配置
+
+[[apps]]
+name = "我的公众号"
+alias = "oa1"
+type = "official-account"
+appid = "wxXXXXXXXXXXXXXXXX"
+appsecret = "your_official_account_secret"
+
+[[apps]]
+name = "我的开放平台应用"
+alias = "op1"
+type = "open-platform"
+appid = "wxYYYYYYYYYYYYYYYY"
+appsecret = "your_open_platform_secret"

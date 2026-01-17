@@ -1,0 +1,23 @@
+{
+  "name": "uni-wechat-oauth",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts -p 4000",
+    "start": "bun run src/index.ts",
+    "build": "bun build src/index.ts --compile --outfile uni-wechat-oauth",
+    "build:linux": "bun build src/index.ts --compile --target=bun-linux-x64 --outfile uni-wechat-oauth",
+    "build:macos": "bun build src/index.ts --compile --target=bun-darwin-x64 --outfile uni-wechat-oauth",
+    "build:windows": "bun build src/index.ts --compile --target=bun-windows-x64 --outfile uni-wechat-oauth"
+  },
+  "dependencies": {
+    "hono": "^4.0.0",
+    "@iarna/toml": "^2.2.5",
+    "lru-cache": "^10.0.0",
+    "pino": "^9.0.0",
+    "pino-pretty": "^11.0.0"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}

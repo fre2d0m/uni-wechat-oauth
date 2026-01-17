@@ -1,112 +1,168 @@
-# uni-wechat-oauth
+# WeChat OAuth Aggregator
 
-[!Runtime [<sup>1</sup>](https://img.shields.io/badge/runtime-Bun-black?style=flat-square&logo=bun)](https://bun.sh)
-[!License [<sup>2</sup>](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
-[!Protocol [<sup>3</sup>](https://img.shields.io/badge/protocol-OAuth2.0%20%2F%20OIDC-blue?style=flat-square)](https://oauth.net/2/)
+基于 Bun 的微信认证聚合服务，智能切换公众号/开放平台认证，可作为 Logto 的社交连接器。
 
-**uni-wechat-oauth** is a high-performance identity proxy (KVM-style switcher) built with Bun [<sup>4</sup>](https://bun.sh). It unifies the fractured WeChat ecosystem (Official Accounts vs. Open Platform) into a single, standard OAuth2/OIDC provider.
+## 核心特性
 
-Designed specifically to act as a **Social Connector for Logto** or any other SP (Service Provider).
+- 🔀 **智能分流**: 根据 User-Agent 自动选择公众号或开放平台认证
+- 🎯 **强制指定**: 通过 state 参数可强制使用特定微信应用
+- 🔐 **UnionID 聚合**: 统一用户身份，无论从哪个入口登录
+- ⚡ **高性能**: 基于 Bun 运行时，极致性能
+- 🔌 **标准协议**: 实现标准 OAuth2/OIDC 接口
 
-## 🚀 The Problem
-WeChat treat "In-App Browser" (Official Accounts) and "PC Browsers" (Open Platform/QR Code) as two entirely different entities with different AppIDs, Secrets, and Auth Endpoints. This makes integrating "Login with WeChat" a nightmare for modern Auth services like Logto that expect a single configuration.
+## 架构设计
 
-## ✨ Features
-- **User-Agent Aware Routing**: Automatically detects if the user is inside WeChat or on a PC and redirects to the appropriate WeChat auth portal.
-- **Identity Unification**: Maps different WeChat OpenIDs to a single `UnionID`, ensuring consistent user identity across all platforms.
-- **Stateless/Lightweight**: Optimized for Bun's high-speed I/O.
-- **OIDC Compatible**: Provides standard `/token` and `/me` endpoints, acting as a bridge for Logto.
-- **Internal Code Mapping**: Bypasses WeChat's "code-used-once" restriction by implementing a secure internal exchange mechanism.
-
-## 🛠 Architecture
-
-```mermaid
-sequenceDiagram
-    participant User as User (UA)
-    participant Logto as Logto (SP)
-    participant Wrapper as uni-wechat-oauth (Bun)
-    participant WeChat as WeChat API (IdP)
-
-    User->>Logto: Click "Login with WeChat"
-    Logto->>Wrapper: Redirect to /authorize (state, redirect_uri)
-  
-    Note right of Wrapper: Detect User-Agent
-    alt is WeChat App
-        Wrapper->>User: Redirect to Official Account Auth (AppID A)
-    else is PC Browser
-        Wrapper->>User: Redirect to QR Code Auth (AppID B)
-    end
-  
-    User->>WeChat: Authorize
-    WeChat->>Wrapper: Callback /callback?code=WECHAT_CODE
-
-    Note right of Wrapper: Exchange WECHAT_CODE for UnionID immediately
-    Wrapper->>Logto: Redirect back (code=INTERNAL_UUID)
-
-    Logto->>Wrapper: POST /oidc/token (INTERNAL_UUID)
-    Wrapper-->>Logto: Return Access Token
-
-    Logto->>Wrapper: GET /oidc/me (Bearer Token)
-    Wrapper-->>Logto: Return { sub: UnionID, nickname, avatar }
+```
+用户 → Logto → WeChat Wrapper (本服务) → 微信接口
+                    ↓
+            根据 UA 分流
+                    ↓
+        公众号 or 开放平台
 ```
 
-## 📦 Installation
+## 快速开始
 
-Ensure you have Bun [<sup>4</sup>](https://bun.sh) installed.
+### 安装依赖
 
 ```bash
-git clone https://github.com/your-username/uni-wechat-oauth.git
-cd uni-wechat-oauth
 bun install
 ```
 
-## ⚙️ Configuration
+### 配置文件
 
-Create a `.env` file in the root directory:
+创建 `wechatapps.toml`:
 
-```env
-PORT=3000
-HOST=https://your-auth-proxy.com
+```toml
+[[apps]]
+name = "公众号应用"
+alias = "oa1"
+type = "official-account"
+appid = "wx..."
+appsecret = "..."
 
-# WeChat Official Account (Inside WeChat)
-WX_MP_APPID=wx1234567890abcdef
-WX_MP_SECRET=secret_here
-
-# WeChat Open Platform (PC Scan)
-WX_OPEN_APPID=wx0987654321fedcba
-WX_OPEN_SECRET=secret_here
-
-# Security
-JWT_SECRET=your_random_string_here
+[[apps]]
+name = "开放平台应用"
+alias = "op1"
+type = "open-platform"
+appid = "wx..."
+appsecret = "..."
 ```
 
-> **Note:** Both WeChat applications MUST be linked under the same WeChat Open Platform Console [<sup>5</sup>](https://open.weixin.qq.com) to share the same `UnionID`.
+创建 `clients.toml`:
 
-## 🚀 Deployment
+```toml
+[[clients]]
+clientid = "logto-client-id"
+clientsecret = "logto-client-secret"
+callbackUrl = "https://your-logto.com/callback/wechat"
+```
 
-### Using Bun (Native)
+### 启动服务
+
 ```bash
-bun start
+bun run src/index.ts --wechat ./wechatapps.toml --clients ./clients.toml
 ```
 
-### Using Docker
+## API 端点
+
+### 1. 授权端点
+```
+GET /authorize?client_id=xxx&redirect_uri=xxx&state=xxx&scope=xxx
+```
+
+可选：在 state 中指定应用 `oa1:<original_state>`
+
+### 2. 回调端点
+```
+GET /callback?code=xxx&state=xxx
+```
+
+### 3. Token 端点
+```
+POST /oidc/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=authorization_code&code=xxx&client_id=xxx&client_secret=xxx
+```
+
+### 4. 用户信息端点
+```
+GET /oidc/me
+Authorization: Bearer xxx
+```
+
+## Logto 配置
+
+在 Logto 中创建自定义社交连接器：
+
+### 带路径前缀部署（推荐）
+
+如果使用 Nginx 路径前缀 `/uni-wechat-oauth`：
+
+- **Authorization Endpoint**: `https://oauth.yourdomain.com/uni-wechat-oauth/authorize`
+- **Token Endpoint**: `https://oauth.yourdomain.com/uni-wechat-oauth/oidc/token`
+- **Userinfo Endpoint**: `https://oauth.yourdomain.com/uni-wechat-oauth/oidc/me`
+- **Client ID**: 配置在 clients.toml 中的 clientid
+- **Client Secret**: 配置在 clients.toml 中的 clientsecret
+
+### 根路径部署
+
+如果直接部署在域名根路径：
+
+- **Authorization Endpoint**: `https://oauth.yourdomain.com/authorize`
+- **Token Endpoint**: `https://oauth.yourdomain.com/oidc/token`
+- **Userinfo Endpoint**: `https://oauth.yourdomain.com/oidc/me`
+- **Client ID**: 配置在 clients.toml 中的 clientid
+- **Client Secret**: 配置在 clients.toml 中的 clientsecret
+
+## 工作流程
+
+1. 用户点击 Logto 的"微信登录"
+2. Logto 重定向到本服务的 `/authorize`
+3. 本服务判断 User-Agent 或 state 参数，选择微信应用
+4. 重定向到对应的微信认证页面
+5. 用户授权后，微信回调到 `/callback`
+6. 本服务用微信 code 换取 UnionID，生成 internal_code
+7. 重定向回 Logto 的回调地址
+8. Logto 调用 `/oidc/token` 和 `/oidc/me` 获取用户信息
+9. 登录完成
+
+## 技术栈
+
+- **Runtime**: Bun
+- **Framework**: Hono
+- **Logger**: Pino
+- **Storage**: 内存 LRU Cache
+- **Config**: TOML
+
+## 打包部署
+
+### 构建单一可执行文件
+
 ```bash
-docker build -t uni-wechat-oauth .
-docker run -p 3000:3000 --env-file .env uni-wechat-oauth
+# 为当前平台构建
+bun run build
+
+# 为 Linux 服务器构建
+bun run build:linux
+
+# 为 macOS 构建
+bun run build:macos
+
+# 为 Windows 构建
+bun run build:windows
 ```
 
-## 🔧 Integration with Logto
+### 服务器要求
 
-1.  **Create a Social Connector**: In Logto, create a "Custom Connector" (OAuth 2).
-2.  **Authorization Endpoint**: `https://your-proxy.com/authorize`
-3.  **Token Endpoint**: `https://your-proxy.com/oidc/token`
-4.  **User Info Endpoint**: `https://your-proxy.com/oidc/me`
-5.  **Redirect URI**: Logto will provide this, ensure it's added to your proxy's allowed list.
+**无需任何运行时依赖！** 打包后的可执行文件完全独立。
 
-## 📄 License
-MIT © [Your Name/Organization]
+- **Linux**: Ubuntu 18.04+, Debian 10+, CentOS 8+
+- **内存**: 最低 128MB，推荐 512MB+
+- **磁盘**: 200MB 可用空间
 
----
+详细部署指南请查看 [DEPLOYMENT.md](./DEPLOYMENT.md)
 
-### Why Bun?
-Bun's native SQLite support and blazing-fast HTTP server allow **uni-wechat-oauth** to handle thousands of concurrent auth requests with sub-millisecond overhead, making it the perfect "invisible" middleman for your auth flow.
+## License
+
+MIT
