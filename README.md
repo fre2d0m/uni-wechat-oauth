@@ -65,19 +65,27 @@ bun run src/index.ts --wechat ./wechatapps.toml --clients ./clients.toml
 
 ## API 端点
 
-### 1. 授权端点
+### 1. 授权端点 (Authorization Endpoint)
 ```
 GET /authorize?client_id=xxx&redirect_uri=xxx&state=xxx&scope=xxx
 ```
 
-可选：在 state 中指定应用 `oa1:<original_state>`
+**参数：**
+- `client_id`: 客户端 ID（配置在 clients.toml）
+- `redirect_uri`: 回调地址（Logto 的回调地址）
+- `state`: 状态参数（Logto 传来的，会原封不动返回）
+- `scope`: 权限范围（可选，默认 `snsapi_userinfo`）
 
-### 2. 回调端点
+**特殊功能：** 在 state 中指定应用 `oa1:<original_state>`
+
+### 2. 回调端点 (Callback Endpoint)
 ```
 GET /callback?code=xxx&state=xxx
 ```
 
-### 3. Token 端点
+微信授权后的回调地址（内部使用）
+
+### 3. Token 端点 (Token Endpoint)
 ```
 POST /oidc/token
 Content-Type: application/x-www-form-urlencoded
@@ -85,10 +93,36 @@ Content-Type: application/x-www-form-urlencoded
 grant_type=authorization_code&code=xxx&client_id=xxx&client_secret=xxx
 ```
 
-### 4. 用户信息端点
+**支持两种客户端认证方式：**
+- Request Body: `client_id` + `client_secret`
+- Basic Auth: `Authorization: Basic base64(client_id:client_secret)`
+
+**响应：**
+```json
+{
+  "access_token": "xxx",
+  "token_type": "Bearer",
+  "expires_in": 600
+}
+```
+
+### 4. 用户信息端点 (UserInfo Endpoint)
 ```
 GET /oidc/me
-Authorization: Bearer xxx
+```
+
+**支持两种 token 传递方式：**
+- Authorization Header: `Authorization: Bearer ACCESS_TOKEN`
+- Query String: `?access_token=ACCESS_TOKEN`
+
+**响应：**
+```json
+{
+  "sub": "unionid",
+  "name": "用户名",
+  "nickname": "昵称",
+  "picture": "头像URL"
+}
 ```
 
 ## Logto 配置
@@ -134,6 +168,18 @@ Authorization: Bearer xxx
 - **Logger**: Pino
 - **Storage**: 内存 LRU Cache
 - **Config**: TOML
+- **规范**: OAuth2 (RFC 6749) + OpenID Connect
+
+## OAuth2 规范
+
+本服务完全遵循 OAuth2 和 OpenID Connect 规范，详见 [OAUTH2_COMPLIANCE.md](./OAUTH2_COMPLIANCE.md)
+
+**支持的特性：**
+- ✅ 标准授权码流程 (Authorization Code Flow)
+- ✅ 多种客户端认证方式（Body / Basic Auth）
+- ✅ 多种 token 传递方式（Header / Query String）
+- ✅ OIDC UserInfo 端点
+- ✅ 标准错误响应
 
 ## 打包部署
 
