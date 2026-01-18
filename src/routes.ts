@@ -17,7 +17,7 @@ export function createRoutes(config: ConfigManager, storage: StateStorage) {
   app.get('/authorize', (c) => {
     const clientId = c.req.query('client_id');
     const redirectUri = c.req.query('redirect_uri');
-    const state = c.req.query('state') || '';
+    const logtoState = c.req.query('state') || '';  // Logto 传来的 state，必须原封不动返回
     const scope = c.req.query('scope') || 'snsapi_userinfo';
 
     if (!clientId || !redirectUri) {
@@ -32,12 +32,13 @@ export function createRoutes(config: ConfigManager, storage: StateStorage) {
 
     // 解析 state 参数，检查是否强制指定应用
     let targetApp: WeChatApp | undefined;
-    let originalState = state;
+    let actualLogtoState = logtoState;
 
-    if (state.includes(':')) {
-      const [alias, restState] = state.split(':', 2);
+    // 支持通过 state 参数强制指定应用：格式为 "alias:original_state"
+    if (logtoState.includes(':')) {
+      const [alias, restState] = logtoState.split(':', 2);
       targetApp = config.getWeChatApp(alias);
-      originalState = restState;
+      actualLogtoState = restState;
       
       if (!targetApp) {
         return c.json({ error: 'invalid_request', error_description: `未找到别名为 ${alias} 的微信应用` }, 400);
@@ -64,39 +65,55 @@ export function createRoutes(config: ConfigManager, storage: StateStorage) {
     const callbackPath = `${forwardedPrefix}/callback`;
     const callbackUrl = new URL(callbackPath, c.req.url).toString();
     
-    // 在 state 中编码必要信息
-    const internalState = JSON.stringify({
-      originalState,
-      clientId,
-      redirectUri,
-      appAlias: targetApp.alias,
+    // 【关键】生成一个新的随机 state 传给微信（安全隔离）
+    const wechatState = storage.generateWeChatState();
+    
+    // 【关键】建立映射：微信 state -> Logto 信息
+    storage.setAuthState(wechatState, {
+      logtoState: actualLogtoState,      // Logto 的原始 state（必须原封不动返回）
+      logtoRedirectUri: redirectUri,     // Logto 的回调地址
+      clientId,                          // 客户端 ID
+      appAlias: targetApp.alias,         // 使用的微信应用
+      timestamp: Date.now(),
     });
-    const encodedState = Buffer.from(internalState).toString('base64url');
 
-    // 重定向到微信授权页面
-    const authUrl = WeChatAPI.getAuthUrl(targetApp, callbackUrl, encodedState, scope);
+    // 重定向到微信授权页面，使用我们生成的 wechatState
+    const authUrl = WeChatAPI.getAuthUrl(targetApp, callbackUrl, wechatState, scope);
     
     logger.info({ 
       type: targetApp.type, 
       alias: targetApp.alias,
-      clientId 
+      clientId,
+      wechatState: wechatState.substring(0, 16) + '...'  // 只记录前缀，避免日志泄露
     }, '授权分流');
+    
     return c.redirect(authUrl);
   });
 
   // 微信回调端点
   app.get('/callback', async (c) => {
-    const code = c.req.query('code');
-    const encodedState = c.req.query('state');
+    const wechatCode = c.req.query('code');
+    const wechatState = c.req.query('state');
 
-    if (!code || !encodedState) {
+    if (!wechatCode || !wechatState) {
       return c.json({ error: 'invalid_request', error_description: '缺少 code 或 state' }, 400);
     }
 
     try {
-      // 解码 state
-      const stateJson = Buffer.from(encodedState, 'base64url').toString('utf-8');
-      const { originalState, clientId, redirectUri, appAlias } = JSON.parse(stateJson);
+      // 【关键】从缓存中取回 Logto 的信息
+      const authState = storage.getAuthState(wechatState);
+      if (!authState) {
+        logger.error({ wechatState: wechatState.substring(0, 16) + '...' }, 'state 无效或已过期');
+        return c.json({ 
+          error: 'invalid_request', 
+          error_description: 'state 无效或已过期，可能是 CSRF 攻击' 
+        }, 400);
+      }
+
+      // 【安全】用完即删，防止重放攻击
+      storage.deleteAuthState(wechatState);
+
+      const { logtoState, logtoRedirectUri, clientId, appAlias } = authState;
 
       // 获取对应的微信应用配置
       const app = config.getWeChatApp(appAlias);
@@ -105,10 +122,14 @@ export function createRoutes(config: ConfigManager, storage: StateStorage) {
         return c.json({ error: 'server_error', error_description: '应用配置丢失' }, 500);
       }
 
-      logger.info({ alias: app.alias, clientId }, '微信回调');
+      logger.info({ 
+        alias: app.alias, 
+        clientId,
+        wechatState: wechatState.substring(0, 16) + '...'
+      }, '微信回调');
 
-      // 用 code 换取 access_token 和 unionid
-      const tokenData = await WeChatAPI.getAccessToken(app, code);
+      // 用微信 code 换取 access_token 和 unionid
+      const tokenData = await WeChatAPI.getAccessToken(app, wechatCode);
       
       if (!tokenData.unionid) {
         logger.error({ appAlias: app.alias }, '未获取到 UnionID');
@@ -121,16 +142,16 @@ export function createRoutes(config: ConfigManager, storage: StateStorage) {
       // 获取用户信息
       const userInfo = await WeChatAPI.getUserInfo(tokenData.access_token, tokenData.openid);
 
-      // 生成内部 code
-      const internalCode = storage.generateCode();
+      // 【关键】生成内部 code（返回给 Logto）
+      const internalCode = storage.generateInternalCode();
       
-      // 存储用户信息
-      storage.set(internalCode, {
+      // 存储用户信息（供后续 token 和 userinfo 端点使用）
+      storage.setUserInfo(internalCode, {
         unionid: userInfo.unionid,
         openid: userInfo.openid,
         nickname: userInfo.nickname,
         avatar: userInfo.headimgurl,
-        originalState,
+        originalState: logtoState,  // 保存 Logto 的 state 用于验证
         clientId,
         timestamp: Date.now(),
       });
@@ -141,12 +162,17 @@ export function createRoutes(config: ConfigManager, storage: StateStorage) {
         appAlias: app.alias 
       }, '用户认证成功');
 
-      // 重定向回 Logto
-      const callbackUrl = new URL(redirectUri);
-      callbackUrl.searchParams.set('code', internalCode);
-      callbackUrl.searchParams.set('state', originalState);
+      // 【关键】重定向回 Logto，原封不动地返回 Logto 的 state
+      const logtoCallbackUrl = new URL(logtoRedirectUri);
+      logtoCallbackUrl.searchParams.set('code', internalCode);
+      logtoCallbackUrl.searchParams.set('state', logtoState);  // 原封不动返回
 
-      return c.redirect(callbackUrl.toString());
+      logger.info({
+        redirectTo: logtoCallbackUrl.origin + logtoCallbackUrl.pathname,
+        logtoState: logtoState.substring(0, 16) + '...'
+      }, '重定向回 Logto');
+
+      return c.redirect(logtoCallbackUrl.toString());
     } catch (error) {
       logger.error({ error: error instanceof Error ? error.message : String(error) }, '回调处理失败');
       return c.json({ 
@@ -179,17 +205,17 @@ export function createRoutes(config: ConfigManager, storage: StateStorage) {
     }
 
     // 获取存储的用户信息
-    const authState = storage.get(code);
-    if (!authState) {
+    const userInfo = storage.getUserInfo(code);
+    if (!userInfo) {
       return c.json({ error: 'invalid_grant', error_description: 'code 无效或已过期' }, 400);
     }
 
     // 验证客户端匹配
-    if (authState.clientId !== clientId) {
+    if (userInfo.clientId !== clientId) {
       return c.json({ error: 'invalid_grant', error_description: 'client_id 不匹配' }, 400);
     }
 
-    logger.info({ unionid: authState.unionid, clientId }, '颁发 Token');
+    logger.info({ unionid: userInfo.unionid, clientId }, '颁发 Token');
 
     // 返回标准 OAuth2 Token 响应
     // 这里简化处理，直接用 code 作为 access_token（因为我们的 /oidc/me 会用它查询）
@@ -211,19 +237,19 @@ export function createRoutes(config: ConfigManager, storage: StateStorage) {
     const token = authHeader.substring(7);
     
     // 从存储中获取用户信息
-    const authState = storage.get(token);
-    if (!authState) {
+    const userInfo = storage.getUserInfo(token);
+    if (!userInfo) {
       return c.json({ error: 'invalid_token', error_description: 'token 无效或已过期' }, 401);
     }
 
-    logger.info({ unionid: authState.unionid }, '返回用户信息');
+    logger.info({ unionid: userInfo.unionid }, '返回用户信息');
 
     // 返回标准 OIDC UserInfo 响应
     return c.json({
-      sub: authState.unionid,
-      name: authState.nickname,
-      nickname: authState.nickname,
-      picture: authState.avatar,
+      sub: userInfo.unionid,
+      name: userInfo.nickname,
+      nickname: userInfo.nickname,
+      picture: userInfo.avatar,
     });
   });
 

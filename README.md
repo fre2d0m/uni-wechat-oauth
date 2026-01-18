@@ -1,4 +1,4 @@
-# WeChat OAuth Aggregator
+# Uni WeChat OAuth 
 
 基于 Bun 的微信认证聚合服务，智能切换公众号/开放平台认证，可作为 Logto 的社交连接器。
 

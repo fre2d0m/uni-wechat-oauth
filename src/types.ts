@@ -44,13 +44,22 @@ export interface WeChatUserInfo {
   unionid: string;
 }
 
-// 内部状态存储
+// 授权阶段状态存储（Wrapper -> 微信）
+export interface AuthorizationState {
+  logtoState: string;        // Logto 传来的原始 state（必须原封不动返回）
+  logtoRedirectUri: string;  // Logto 的回调地址
+  clientId: string;          // 客户端 ID
+  appAlias: string;          // 使用的微信应用别名
+  timestamp: number;
+}
+
+// 认证完成后的用户信息存储（用于 Token 和 UserInfo 端点）
 export interface InternalAuthState {
   unionid: string;
   openid: string;
   nickname: string;
   avatar: string;
-  originalState: string;
+  originalState: string;  // 保留，用于验证
   clientId: string;
   timestamp: number;
 }

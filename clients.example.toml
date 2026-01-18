@@ -1,0 +1,7 @@
+# OAuth 客户端配置示例
+# 复制此文件为 clients.toml 并填入真实配置
+
+[[clients]]
+clientid = "logto-wechat-connector"
+clientsecret = "your-secure-client-secret"
+callbackUrl = "https://your-logto-instance.com/callback/wechat"
