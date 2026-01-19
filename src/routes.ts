@@ -8,13 +8,16 @@ import { logger } from './logger';
 export function createRoutes(config: ConfigManager, storage: StateStorage) {
   const app = new Hono();
 
+  // 路由前缀
+  const BASE_PATH = '/uni-wechat-oauth-service';
+
   // 健康检查
-  app.get('/health', (c) => {
+  app.get(`${BASE_PATH}/health`, (c) => {
     return c.json({ status: 'ok', service: 'wechat-oauth-aggregator' });
   });
 
   // 授权端点
-  app.get('/authorize', (c) => {
+  app.get(`${BASE_PATH}/authorize`, (c) => {
     const clientId = c.req.query('client_id');
     const redirectUri = c.req.query('redirect_uri');
     const logtoState = c.req.query('state') || '';  // Logto 传来的 state，必须原封不动返回
@@ -87,9 +90,8 @@ export function createRoutes(config: ConfigManager, storage: StateStorage) {
     }
 
     // 构造回调 URL（指向本服务）
-    // 考虑反向代理的路径前缀
-    const forwardedPrefix = c.req.header('x-forwarded-prefix') || '';
-    const callbackPath = `${forwardedPrefix}/callback`;
+    // 注意：不需要再考虑 x-forwarded-prefix，因为我们已经有了固定的 BASE_PATH
+    const callbackPath = `${BASE_PATH}/callback`;
     const callbackUrl = new URL(callbackPath, c.req.url).toString();
     
     // 【关键】生成一个新的随机 state 传给微信（安全隔离）
@@ -124,7 +126,7 @@ export function createRoutes(config: ConfigManager, storage: StateStorage) {
   });
 
   // 微信回调端点
-  app.get('/callback', async (c) => {
+  app.get(`${BASE_PATH}/callback`, async (c) => {
     const wechatCode = c.req.query('code');
     const wechatState = c.req.query('state');
 
@@ -275,7 +277,7 @@ export function createRoutes(config: ConfigManager, storage: StateStorage) {
   });
 
   // Token 端点 (RFC 6749)
-  app.post('/oidc/token', async (c) => {
+  app.post(`${BASE_PATH}/oidc/token`, async (c) => {
     // OAuth2 支持两种客户端认证方式：
     // 1. Request Body: client_id + client_secret
     // 2. Authorization Header: Basic base64(client_id:client_secret)
@@ -413,7 +415,7 @@ export function createRoutes(config: ConfigManager, storage: StateStorage) {
   });
 
   // 用户信息端点
-  app.get('/oidc/me', (c) => {
+  app.get(`${BASE_PATH}/oidc/me`, (c) => {
     // OAuth2 标准支持两种方式传递 access_token：
     // 1. Authorization Header: Authorization: Bearer ACCESS_TOKEN
     // 2. Query String: ?access_token=ACCESS_TOKEN

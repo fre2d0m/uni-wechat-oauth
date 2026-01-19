@@ -65,9 +65,11 @@ bun run src/index.ts --wechat ./wechatapps.toml --clients ./clients.toml
 
 ## API 端点
 
+所有端点都有统一前缀：`/uni-wechat-oauth-service`
+
 ### 1. 授权端点 (Authorization Endpoint)
 ```
-GET /authorize?client_id=xxx&redirect_uri=xxx&state=xxx&scope=xxx
+GET /uni-wechat-oauth-service/authorize?client_id=xxx&redirect_uri=xxx&state=xxx&scope=xxx
 ```
 
 **参数：**
@@ -80,14 +82,14 @@ GET /authorize?client_id=xxx&redirect_uri=xxx&state=xxx&scope=xxx
 
 ### 2. 回调端点 (Callback Endpoint)
 ```
-GET /callback?code=xxx&state=xxx
+GET /uni-wechat-oauth-service/callback?code=xxx&state=xxx
 ```
 
 微信授权后的回调地址（内部使用）
 
 ### 3. Token 端点 (Token Endpoint)
 ```
-POST /oidc/token
+POST /uni-wechat-oauth-service/oidc/token
 Content-Type: application/x-www-form-urlencoded
 
 grant_type=authorization_code&code=xxx&client_id=xxx&client_secret=xxx
@@ -108,7 +110,7 @@ grant_type=authorization_code&code=xxx&client_id=xxx&client_secret=xxx
 
 ### 4. 用户信息端点 (UserInfo Endpoint)
 ```
-GET /oidc/me
+GET /uni-wechat-oauth-service/oidc/me
 ```
 
 **支持两种 token 传递方式：**
@@ -125,27 +127,20 @@ GET /oidc/me
 }
 ```
 
+### 5. 健康检查
+```
+GET /uni-wechat-oauth-service/health
+```
+
 ## Logto 配置
 
 在 Logto 中创建自定义社交连接器：
 
-### 带路径前缀部署（推荐）
+### 配置端点
 
-如果使用 Nginx 路径前缀 `/uni-wechat-oauth`：
-
-- **Authorization Endpoint**: `https://oauth.yourdomain.com/uni-wechat-oauth/authorize`
-- **Token Endpoint**: `https://oauth.yourdomain.com/uni-wechat-oauth/oidc/token`
-- **Userinfo Endpoint**: `https://oauth.yourdomain.com/uni-wechat-oauth/oidc/me`
-- **Client ID**: 配置在 clients.toml 中的 clientid
-- **Client Secret**: 配置在 clients.toml 中的 clientsecret
-
-### 根路径部署
-
-如果直接部署在域名根路径：
-
-- **Authorization Endpoint**: `https://oauth.yourdomain.com/authorize`
-- **Token Endpoint**: `https://oauth.yourdomain.com/oidc/token`
-- **Userinfo Endpoint**: `https://oauth.yourdomain.com/oidc/me`
+- **Authorization Endpoint**: `https://oauth.yourdomain.com/uni-wechat-oauth-service/authorize`
+- **Token Endpoint**: `https://oauth.yourdomain.com/uni-wechat-oauth-service/oidc/token`
+- **Userinfo Endpoint**: `https://oauth.yourdomain.com/uni-wechat-oauth-service/oidc/me`
 - **Client ID**: 配置在 clients.toml 中的 clientid
 - **Client Secret**: 配置在 clients.toml 中的 clientsecret
 
