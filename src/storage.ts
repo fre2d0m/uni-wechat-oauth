@@ -49,7 +49,7 @@ export class StateStorage {
   
   // 生成内部 code（用于返回给 Logto）
   generateInternalCode(): string {
-    return `internal_${crypto.randomUUID()}`;
+    return crypto.randomUUID();
   }
 
   // 存储用户信息

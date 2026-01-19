@@ -228,7 +228,7 @@ export function createRoutes(config: ConfigManager, storage: StateStorage) {
         unionid: userInfo.unionid.substring(0, 8) + '...',
         openid: userInfo.openid.substring(0, 8) + '...',
         nickname: userInfo.nickname,
-        hasAvatar: !!userInfo.headimgurl,
+        avatar: userInfo.headimgurl,
         sex: userInfo.sex,
         province: userInfo.province,
         city: userInfo.city
@@ -237,6 +237,7 @@ export function createRoutes(config: ConfigManager, storage: StateStorage) {
       // 【关键】生成内部 code（返回给 Logto）
       const internalCode = storage.generateInternalCode();
       
+
       // 存储用户信息（供后续 token 和 userinfo 端点使用）
       storage.setUserInfo(internalCode, {
         unionid: userInfo.unionid,
@@ -263,8 +264,8 @@ export function createRoutes(config: ConfigManager, storage: StateStorage) {
 
       logger.info({
         redirectTo: logtoCallbackUrl.origin + logtoCallbackUrl.pathname,
-        logtoStatePrefix: logtoState.substring(0, 16),
-        internalCodePrefix: internalCode.substring(0, 16),
+        logtoState,
+        internalCode,
         clientId
       }, '重定向回 Logto');
 
@@ -324,10 +325,10 @@ export function createRoutes(config: ConfigManager, storage: StateStorage) {
     logger.info({
       endpoint: '/oidc/token',
       grantType,
-      hasCode: !!code,
+      code,
       clientId,
       authMethod,
-      hasRedirectUri: !!redirectUri
+      redirectUri
     }, '收到 token 请求');
 
     // 验证必要参数
@@ -368,7 +369,7 @@ export function createRoutes(config: ConfigManager, storage: StateStorage) {
       }, 401);
     }
 
-    logger.debug({ clientId, authMethod }, '客户端认证成功');
+    logger.info({ clientId, authMethod }, '客户端认证成功');
 
     // 获取存储的用户信息
     const userInfo = storage.getUserInfo(code);
@@ -383,9 +384,9 @@ export function createRoutes(config: ConfigManager, storage: StateStorage) {
       }, 400);
     }
 
-    logger.debug({
-      codePrefix: code.substring(0, 16),
-      unionidPrefix: userInfo.unionid.substring(0, 8),
+    logger.info({
+      code,
+      unionid: userInfo.unionid,
       codeAge: Date.now() - userInfo.timestamp
     }, '成功取回用户信息');
 
@@ -403,7 +404,7 @@ export function createRoutes(config: ConfigManager, storage: StateStorage) {
     }
 
     logger.info({ 
-      unionidPrefix: userInfo.unionid.substring(0, 8),
+      unionid: userInfo.unionid,
       nickname: userInfo.nickname,
       clientId,
       authMethod 
@@ -414,7 +415,6 @@ export function createRoutes(config: ConfigManager, storage: StateStorage) {
     // 生产环境建议生成新的 JWT token
     return c.json({
       access_token: code,
-      token_type: 'Bearer',
       expires_in: 600, // 10 分钟
       // scope: 'openid profile',  // 可选：返回授权的 scope
     });
