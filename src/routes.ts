@@ -415,6 +415,7 @@ export function createRoutes(config: ConfigManager, storage: StateStorage) {
     // 生产环境建议生成新的 JWT token
     return c.json({
       access_token: code,
+      token_type: 'Bearer',
       expires_in: 600, // 10 分钟
       // scope: 'openid profile',  // 可选：返回授权的 scope
     });
