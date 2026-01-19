@@ -80,14 +80,23 @@ GET /uni-wechat-oauth-service/authorize?client_id=xxx&redirect_uri=xxx&state=xxx
 
 **特殊功能：** 在 state 中指定应用 `oa1:<original_state>`
 
-### 2. 回调端点 (Callback Endpoint)
+**用户授权确认：** 当检测到微信公众号环境且 scope 为 `snsapi_userinfo` 时，会先跳转到中转页面，由用户手动点击"使用微信登录"按钮，以确保能够获得完整的用户信息权限。
+
+### 2. 用户授权确认页面
+```
+GET /uni-wechat-oauth-service/consent?continue=xxx
+```
+
+中转页面，用于微信公众号的手动授权流程（内部使用）
+
+### 3. 回调端点 (Callback Endpoint)
 ```
 GET /uni-wechat-oauth-service/callback?code=xxx&state=xxx
 ```
 
 微信授权后的回调地址（内部使用）
 
-### 3. Token 端点 (Token Endpoint)
+### 4. Token 端点 (Token Endpoint)
 ```
 POST /uni-wechat-oauth-service/oidc/token
 Content-Type: application/x-www-form-urlencoded
@@ -108,7 +117,7 @@ grant_type=authorization_code&code=xxx&client_id=xxx&client_secret=xxx
 }
 ```
 
-### 4. 用户信息端点 (UserInfo Endpoint)
+### 5. 用户信息端点 (UserInfo Endpoint)
 ```
 GET /uni-wechat-oauth-service/oidc/me
 ```
@@ -127,7 +136,7 @@ GET /uni-wechat-oauth-service/oidc/me
 }
 ```
 
-### 5. 健康检查
+### 6. 健康检查
 ```
 GET /uni-wechat-oauth-service/health
 ```
@@ -146,6 +155,8 @@ GET /uni-wechat-oauth-service/health
 
 ## 工作流程
 
+### 标准流程（开放平台或 snsapi_base）
+
 1. 用户点击 Logto 的"微信登录"
 2. Logto 重定向到本服务的 `/authorize`
 3. 本服务判断 User-Agent 或 state 参数，选择微信应用
@@ -155,6 +166,22 @@ GET /uni-wechat-oauth-service/health
 7. 重定向回 Logto 的回调地址
 8. Logto 调用 `/oidc/token` 和 `/oidc/me` 获取用户信息
 9. 登录完成
+
+### 微信公众号手动授权流程（snsapi_userinfo）
+
+1. 用户点击 Logto 的"微信登录"
+2. Logto 重定向到本服务的 `/authorize`
+3. 本服务检测到微信公众号环境且 scope 为 `snsapi_userinfo`
+4. **重定向到中转页面 `/consent`，显示"使用微信登录"按钮**
+5. **用户手动点击按钮，触发微信授权**
+6. 重定向到微信认证页面
+7. 用户授权后，微信回调到 `/callback`
+8. 本服务用微信 code 换取 UnionID 和用户信息，生成 internal_code
+9. 重定向回 Logto 的回调地址
+10. Logto 调用 `/oidc/token` 和 `/oidc/me` 获取用户信息
+11. 登录完成
+
+> **为什么需要中转页面？** 微信公众号的 `snsapi_userinfo` scope 需要用户主动触发授权才能获取完整的用户信息（头像、昵称等）。如果直接从 Logto 跳转到微信，可能会因为缺少用户交互而无法获得该权限。
 
 ## 技术栈
 

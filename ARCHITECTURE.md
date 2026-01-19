@@ -35,36 +35,48 @@
    │                     │                        │    clientId          │
    │                     │                        │    appAlias          │
    │                     │                        │                      │
-   │                     │                        │  4. 重定向           │
+   │                     │                        │  4. 检测是否需要     │
+   │                     │                        │  用户手动授权        │
+   │                     │                        │  (公众号+userinfo)   │
+   │                     │                        │                      │
+   │                     │  [如需手动授权]        │                      │
+   │                     │  5a. 重定向到中转页面  │                      │
+   │                     │  /consent?continue=... │                      │
+   │                     │<───────────────────────┤                      │
+   │                     │                        │                      │
+   │                     │  用户点击"使用微信登录"│                      │
+   │                     │                        │                      │
+   │                     │  [直接授权或手动触发]  │                      │
+   │                     │                        │  5b. 重定向到微信    │
    │                     │                        │  state=WX_STATE      │
    │                     │                        │  redirect_uri=       │
    │                     │                        │  wrapper.com/callback│
    │                     │                        ├─────────────────────>│
    │                     │                        │                      │
-   │                     │                        │  5. 用户授权/扫码    │
+   │                     │                        │  6. 用户授权/扫码    │
    │                     │                        │                      │
-   │                     │                        │  6. 回调             │
+   │                     │                        │  7. 回调             │
    │                     │                        │  code=WX_CODE        │
    │                     │                        │  state=WX_STATE      │
    │                     │                        │<─────────────────────┤
    │                     │                        │                      │
-   │                     │                        │  7. 取回映射         │
+   │                     │                        │  8. 取回映射         │
    │                     │                        │  WX_STATE ->         │
    │                     │                        │    LOGTO_STATE       │
    │                     │                        │  用完即删（防重放）  │
    │                     │                        │                      │
-   │                     │                        │  8. 换取 UnionID     │
+   │                     │                        │  9. 换取 UnionID     │
    │                     │                        ├─────────────────────>│
    │                     │                        │<─────────────────────┤
    │                     │                        │  access_token        │
    │                     │                        │  unionid             │
    │                     │                        │                      │
-   │                     │                        │  9. 获取用户信息     │
+   │                     │                        │  10. 获取用户信息    │
    │                     │                        ├─────────────────────>│
    │                     │                        │<─────────────────────┤
    │                     │                        │  nickname, avatar    │
    │                     │                        │                      │
-   │                     │                        │  10. 生成 INTERNAL_CODE│
+   │                     │                        │  11. 生成 INTERNAL_CODE│
    │                     │                        │  存储:               │
    │                     │                        │  INTERNAL_CODE ->    │
    │                     │                        │    unionid           │
@@ -73,25 +85,25 @@
    │                     │                        │    LOGTO_STATE       │
    │                     │                        │    clientId          │
    │                     │                        │                      │
-   │                     │  11. 重定向回 Logto    │                      │
+   │                     │  12. 重定向回 Logto    │                      │
    │                     │  code=INTERNAL_CODE    │                      │
    │                     │  state=LOGTO_STATE     │                      │
    │                     │<───────────────────────┤                      │
    │                     │                        │                      │
-   │                     │  12. /oidc/token       │                      │
+   │                     │  13. /oidc/token       │                      │
    │                     │  code=INTERNAL_CODE    │                      │
    │                     ├───────────────────────>│                      │
    │                     │<───────────────────────┤                      │
    │                     │  access_token          │                      │
    │                     │                        │                      │
-   │                     │  13. /oidc/me          │                      │
+   │                     │  14. /oidc/me          │                      │
    │                     │  Bearer access_token   │                      │
    │                     ├───────────────────────>│                      │
    │                     │<───────────────────────┤                      │
    │                     │  sub: unionid          │                      │
    │                     │  nickname, picture     │                      │
    │                     │                        │                      │
-   │  14. 重定向回应用   │                        │                      │
+   │  15. 重定向回应用   │                        │                      │
    │  app.com/callback   │                        │                      │
    │<────────────────────┤                        │                      │
    │  Logto JWT Token    │                        │                      │
@@ -190,8 +202,16 @@ GET /authorize?
 2. 判断 User-Agent 或解析 state 前缀，选择微信应用
 3. 生成 `wechatState = wx_uuid`
 4. 存储映射：`wechatState -> { logtoState, logtoRedirectUri, clientId, appAlias }`
+5. 检测是否需要用户手动授权（微信公众号 + snsapi_userinfo）
 
-**输出：**
+**输出（需要手动授权）：**
+```
+302 Redirect to:
+https://wrapper.com/consent?
+  continue=https%3A%2F%2Fopen.weixin.qq.com%2Fconnect%2Foauth2%2Fauthorize%3F...
+```
+
+**输出（直接授权）：**
 ```
 302 Redirect to:
 https://open.weixin.qq.com/connect/oauth2/authorize?
