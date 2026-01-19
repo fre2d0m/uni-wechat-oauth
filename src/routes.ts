@@ -98,6 +98,8 @@ export function createRoutes(config: ConfigManager, storage: StateStorage) {
     // 构造完整的回调 URL
     const callbackUrl = `${forwardedProto}://${forwardedHost}${callbackPath}`;
     
+    logger.info(`Callback URL: ${callbackUrl} via ${c.req.header('x-forwarded-proto')}, ${c.req.header('x-forwarded-host')}`)
+
     // 【关键】生成一个新的随机 state 传给微信（安全隔离）
     const wechatState = storage.generateWeChatState();
     
