@@ -69,18 +69,22 @@ bun run src/index.ts --wechat ./wechatapps.toml --clients ./clients.toml
 
 ### 1. 授权端点 (Authorization Endpoint)
 ```
-GET /uni-wechat-oauth-service/authorize?client_id=xxx&redirect_uri=xxx&state=xxx&scope=xxx
+GET /uni-wechat-oauth-service/authorize?client_id=xxx&redirect_uri=xxx&state=xxx
 ```
 
 **参数：**
 - `client_id`: 客户端 ID（配置在 clients.toml）
 - `redirect_uri`: 回调地址（Logto 的回调地址）
 - `state`: 状态参数（Logto 传来的，会原封不动返回）
-- `scope`: 权限范围（可选，默认 `snsapi_userinfo`）
+
+**Scope 自动选择：**
+- 开放平台应用：自动使用 `snsapi_login`（扫码登录）
+- 公众号应用：自动使用 `snsapi_userinfo`（获取用户信息）
+- 忽略 Logto 传入的 scope 参数
 
 **特殊功能：** 在 state 中指定应用 `oa1:<original_state>`
 
-**用户授权确认：** 当检测到微信公众号环境且 scope 为 `snsapi_userinfo` 时，会先跳转到中转页面，由用户手动点击"使用微信登录"按钮，以确保能够获得完整的用户信息权限。
+**用户授权确认：** 当检测到微信公众号环境且使用 `snsapi_userinfo` 时，会先跳转到中转页面，由用户手动点击"使用微信登录"按钮，以确保能够获得完整的用户信息权限。
 
 ### 2. 用户授权确认页面
 ```

@@ -34,14 +34,12 @@ export function createRoutes(config: ConfigManager, storage: StateStorage) {
     const clientId = c.req.query('client_id');
     const redirectUri = c.req.query('redirect_uri');
     const logtoState = c.req.query('state') || '';  // Logto 传来的 state，必须原封不动返回
-    const scope = c.req.query('scope') || 'snsapi_userinfo';
     const userAgent = c.req.header('user-agent') || '';
 
     logger.info({
       endpoint: '/authorize',
       clientId,
       redirectUri,
-      scope,
       hasState: !!logtoState,
       userAgent: userAgent.substring(0, 100)  // 截断避免过长
     }, '收到授权请求');
@@ -101,6 +99,16 @@ export function createRoutes(config: ConfigManager, storage: StateStorage) {
         userAgent: userAgent.substring(0, 50)
       }, 'User-Agent 自动选择微信应用');
     }
+
+    // 根据应用类型确定 scope
+    // 开放平台使用 snsapi_login（扫码登录）
+    // 公众号使用 snsapi_userinfo（获取用户信息）
+    const scope = targetApp.type === 'open-platform' ? 'snsapi_login' : 'snsapi_userinfo';
+    
+    logger.info({
+      appType: targetApp.type,
+      scope
+    }, '根据应用类型设置 scope');
 
     // 构造回调 URL（指向本服务）
     // 需要考虑反向代理的协议和主机名

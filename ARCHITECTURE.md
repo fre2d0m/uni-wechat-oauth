@@ -194,15 +194,17 @@ GET /authorize?
   client_id=logto-client
   &redirect_uri=https://logto.app/callback/wechat
   &state=LOGTO_STATE_AAA
-  &scope=snsapi_userinfo
 ```
 
 **处理：**
 1. 验证 `client_id`
 2. 判断 User-Agent 或解析 state 前缀，选择微信应用
-3. 生成 `wechatState = wx_uuid`
-4. 存储映射：`wechatState -> { logtoState, logtoRedirectUri, clientId, appAlias }`
-5. 检测是否需要用户手动授权（微信公众号 + snsapi_userinfo）
+3. 根据应用类型自动设置 scope：
+   - 开放平台：`snsapi_login`
+   - 公众号：`snsapi_userinfo`
+4. 生成 `wechatState = wx_uuid`
+5. 存储映射：`wechatState -> { logtoState, logtoRedirectUri, clientId, appAlias }`
+6. 检测是否需要用户手动授权（微信公众号 + snsapi_userinfo）
 
 **输出（需要手动授权）：**
 ```
@@ -211,14 +213,14 @@ https://wrapper.com/consent?
   continue=https%3A%2F%2Fopen.weixin.qq.com%2Fconnect%2Foauth2%2Fauthorize%3F...
 ```
 
-**输出（直接授权）：**
+**输出（直接授权 - 开放平台）：**
 ```
 302 Redirect to:
-https://open.weixin.qq.com/connect/oauth2/authorize?
+https://open.weixin.qq.com/connect/qrconnect?
   appid=wxXXXXXX
   &redirect_uri=https://wrapper.com/callback
   &state=wx_uuid
-  &scope=snsapi_userinfo
+  &scope=snsapi_login
 ```
 
 ### 阶段 2: 微信回调 (微信 → Wrapper)
