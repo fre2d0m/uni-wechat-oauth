@@ -4,8 +4,6 @@ import type { StateStorage } from './storage';
 import { WeChatAPI } from './wechat';
 import type { WeChatApp } from './types';
 import { logger } from './logger';
-import { readFileSync } from 'fs';
-import { join } from 'path';
 
 export function createRoutes(config: ConfigManager, storage: StateStorage) {
   const app = new Hono();
@@ -15,18 +13,7 @@ export function createRoutes(config: ConfigManager, storage: StateStorage) {
 
   // 健康检查
   app.get(`${BASE_PATH}/health`, (c) => {
-    return c.json({ status: 'ok', service: 'wechat-oauth-aggregator' });
-  });
-
-  // 用户授权确认页面
-  app.get(`${BASE_PATH}/consent`, (c) => {
-    try {
-      const html = readFileSync(join(__dirname, 'consent.html'), 'utf-8');
-      return c.html(html);
-    } catch (error) {
-      logger.error({ error }, '读取授权页面失败');
-      return c.text('授权页面加载失败', 500);
-    }
+    return c.json({ status: 'ok', service: 'uni-wechat-oauth-service' });
   });
 
   // 授权端点
@@ -148,25 +135,6 @@ export function createRoutes(config: ConfigManager, storage: StateStorage) {
       forcedAlias,
       redirectTo: authUrl.substring(0, 100) + '...'
     }, '授权分流成功');
-    
-    // TODO: 暂时注释掉中转页面逻辑，测试 scope 是否正确
-    // 如果是微信公众号且需要 snsapi_userinfo，先跳转到中转页面
-    // const isWeChat = WeChatAPI.isWeChatBrowser(userAgent);
-    // const needsConsent = isWeChat && targetApp.type === 'official-account' && scope === 'snsapi_userinfo';
-    
-    // if (needsConsent) {
-    //   // 构造中转页面 URL，将实际的微信授权 URL 作为参数传递
-    //   const consentUrl = new URL(`${forwardedProto}://${forwardedHost}${BASE_PATH}/consent`);
-    //   consentUrl.searchParams.set('continue', authUrl);
-    //   
-    //   logger.info({ 
-    //     clientId,
-    //     appAlias: targetApp.alias,
-    //     consentUrl: consentUrl.toString().substring(0, 100) + '...'
-    //   }, '需要用户手动授权，跳转到中转页面');
-    //   
-    //   return c.redirect(consentUrl.toString());
-    // }
     
     // 直接跳转到微信授权（测试阶段）
     logger.info({ clientId, appAlias: targetApp.alias, scope }, '直接重定向到微信授权（测试模式）');

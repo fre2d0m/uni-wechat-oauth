@@ -8,7 +8,11 @@
     "build": "bun build src/index.ts --compile --outfile uni-wechat-oauth",
     "build:linux": "bun build src/index.ts --compile --target=bun-linux-x64 --outfile uni-wechat-oauth",
     "build:macos": "bun build src/index.ts --compile --target=bun-darwin-x64 --outfile uni-wechat-oauth",
-    "build:windows": "bun build src/index.ts --compile --target=bun-windows-x64 --outfile uni-wechat-oauth"
+    "build:windows": "bun build src/index.ts --compile --target=bun-windows-x64 --outfile uni-wechat-oauth",
+    "pm2:start": "./scripts/pm2-start.sh",
+    "pm2:stop": "./scripts/pm2-stop.sh",
+    "pm2:restart": "./scripts/pm2-restart.sh",
+    "pm2:logs": "./scripts/pm2-logs.sh"
   },
   "dependencies": {
     "hono": "^4.0.0",

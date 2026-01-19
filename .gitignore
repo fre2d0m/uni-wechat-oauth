@@ -4,7 +4,11 @@ node_modules/
 .env
 dist/
 *.log
+logs/
 .DS_Store
+
+# PM2
+.pm2/
 
 # 构建产物
 uni-wechat-oauth

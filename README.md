@@ -59,9 +59,64 @@ callbackUrl = "https://your-logto.com/callback/wechat"
 
 ### 启动服务
 
+**开发模式（带热重载）：**
+```bash
+bun run dev
+```
+
+**生产模式（直接运行）：**
 ```bash
 bun run src/index.ts --wechat ./wechatapps.toml --clients ./clients.toml
 ```
+
+**使用 PM2 管理（推荐生产环境）：**
+
+首先安装 PM2：
+```bash
+npm install -g pm2
+```
+
+启动服务：
+```bash
+# 使用脚本启动
+./scripts/pm2-start.sh
+
+# 或使用 npm 命令
+bun run pm2:start
+```
+
+常用 PM2 命令：
+```bash
+# 查看状态
+pm2 status
+
+# 查看日志
+pm2 logs uni-wechat-oauth
+# 或使用脚本
+bun run pm2:logs
+
+# 重启服务
+pm2 restart uni-wechat-oauth
+# 或使用脚本
+bun run pm2:restart
+
+# 停止服务
+pm2 stop uni-wechat-oauth
+# 或使用脚本
+bun run pm2:stop
+
+# 删除服务
+pm2 delete uni-wechat-oauth
+
+# 设置开机自启
+pm2 startup
+pm2 save
+```
+
+日志文件位置：
+- 错误日志：`./logs/err.log`
+- 输出日志：`./logs/out.log`
+- 合并日志：`./logs/combined.log`
 
 ## API 端点
 
