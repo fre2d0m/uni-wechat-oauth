@@ -90,9 +90,13 @@ export function createRoutes(config: ConfigManager, storage: StateStorage) {
     }
 
     // 构造回调 URL（指向本服务）
-    // 注意：不需要再考虑 x-forwarded-prefix，因为我们已经有了固定的 BASE_PATH
+    // 需要考虑反向代理的协议和主机名
+    const forwardedProto = c.req.header('x-forwarded-proto') || 'https';
+    const forwardedHost = c.req.header('x-forwarded-host') || c.req.header('host') || '';
     const callbackPath = `${BASE_PATH}/callback`;
-    const callbackUrl = new URL(callbackPath, c.req.url).toString();
+    
+    // 构造完整的回调 URL
+    const callbackUrl = `${forwardedProto}://${forwardedHost}${callbackPath}`;
     
     // 【关键】生成一个新的随机 state 传给微信（安全隔离）
     const wechatState = storage.generateWeChatState();
