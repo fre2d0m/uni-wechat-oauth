@@ -249,11 +249,17 @@ export function createRoutes(config: ConfigManager, storage: StateStorage) {
       
 
       // 存储用户信息（供后续 token 和 userinfo 端点使用）
+      // 保持微信原始字段，不做转换
       storage.setUserInfo(internalCode, {
         unionid: userInfo.unionid,
         openid: userInfo.openid,
         nickname: userInfo.nickname,
-        avatar: userInfo.headimgurl,
+        sex: userInfo.sex,
+        province: userInfo.province,
+        city: userInfo.city,
+        country: userInfo.country,
+        headimgurl: userInfo.headimgurl,
+        privilege: userInfo.privilege,
         originalState: logtoState,  // 保存 Logto 的 state 用于验证
         clientId,
         timestamp: Date.now(),
@@ -488,12 +494,18 @@ export function createRoutes(config: ConfigManager, storage: StateStorage) {
       tokenAge: Date.now() - userInfo.timestamp
     }, '返回用户信息');
 
-    // 返回标准 OIDC UserInfo 响应
+    // 返回微信原始字段，不做转换
+    // 作为聚合器，保持微信的原始数据结构
     return c.json({
-      sub: userInfo.unionid,
-      name: userInfo.nickname,
+      unionid: userInfo.unionid,
+      openid: userInfo.openid,
       nickname: userInfo.nickname,
-      picture: userInfo.avatar,
+      sex: userInfo.sex,
+      province: userInfo.province,
+      city: userInfo.city,
+      country: userInfo.country,
+      headimgurl: userInfo.headimgurl,
+      privilege: userInfo.privilege,
     });
   });
 

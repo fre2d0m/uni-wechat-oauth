@@ -185,15 +185,31 @@ GET /uni-wechat-oauth-service/oidc/me
 - Authorization Header: `Authorization: Bearer ACCESS_TOKEN`
 - Query String: `?access_token=ACCESS_TOKEN`
 
-**响应：**
+**响应（微信原始字段）：**
 ```json
 {
-  "sub": "unionid",
-  "name": "用户名",
-  "nickname": "昵称",
-  "picture": "头像URL"
+  "unionid": "o6_bmasdasdsad6_2sgVt7hMZOPfL",
+  "openid": "oLVPpjqs9BhvzwPj5A-vTYAX3GLc",
+  "nickname": "用户昵称",
+  "sex": 1,
+  "province": "广东",
+  "city": "深圳",
+  "country": "中国",
+  "headimgurl": "https://thirdwx.qlogo.cn/...",
+  "privilege": []
 }
 ```
+
+**字段说明：**
+- `unionid`: 用户统一标识（跨应用唯一）
+- `openid`: 用户在当前应用的唯一标识
+- `nickname`: 用户昵称
+- `sex`: 性别（1=男性，2=女性，0=未知）
+- `province`: 省份
+- `city`: 城市
+- `country`: 国家
+- `headimgurl`: 头像 URL
+- `privilege`: 用户特权信息
 
 ### 6. 健康检查
 ```

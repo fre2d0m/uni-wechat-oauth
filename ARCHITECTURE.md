@@ -286,13 +286,18 @@ Authorization: Bearer internal_uuid
 **处理：**
 1. 从缓存取回：`userInfo = storage.getUserInfo(internal_uuid)`
 
-**输出：**
+**输出（微信原始字段）：**
 ```json
 {
-  "sub": "unionid_12345",
-  "name": "张三",
-  "nickname": "张三",
-  "picture": "https://..."
+  "unionid": "o6_bmasdasdsad6_2sgVt7hMZOPfL",
+  "openid": "oLVPpjqs9BhvzwPj5A-vTYAX3GLc",
+  "nickname": "用户昵称",
+  "sex": 1,
+  "province": "广东",
+  "city": "深圳",
+  "country": "中国",
+  "headimgurl": "https://thirdwx.qlogo.cn/...",
+  "privilege": []
 }
 ```
 

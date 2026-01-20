@@ -54,11 +54,17 @@ export interface AuthorizationState {
 }
 
 // 认证完成后的用户信息存储（用于 Token 和 UserInfo 端点）
+// 保持微信原始字段，不做转换
 export interface InternalAuthState {
   unionid: string;
   openid: string;
   nickname: string;
-  avatar: string;
+  sex: number;
+  province: string;
+  city: string;
+  country: string;
+  headimgurl: string;
+  privilege: string[];
   originalState: string;  // 保留，用于验证
   clientId: string;
   timestamp: number;
